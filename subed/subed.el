@@ -1,6 +1,6 @@
 ;;; subed.el --- A major mode for editing subtitles  -*- lexical-binding: t; -*-
 
-;; Version: 0.0.1
+;; Version: 0.0.2
 ;; Keywords: convenience, files, hypermedia, multimedia
 ;; URL: https://github.com/rndusr/subed
 ;; Package-Requires: ((emacs "25.1"))
@@ -37,6 +37,7 @@
 (require 'subed-common)
 (require 'subed-srt)
 (require 'subed-vtt)
+(require 'subed-ass)
 (require 'subed-mpv)
 
 (defconst subed-mpv-frame-step-map
@@ -70,6 +71,7 @@
     (define-key subed-mode-map (kbd "M-.") #'subed-split-subtitle)
     (define-key subed-mode-map (kbd "M-s") #'subed-sort)
     (define-key subed-mode-map (kbd "M-SPC") #'subed-mpv-toggle-pause)
+    (define-key subed-mode-map (kbd "M-j") #'subed-mpv-jump-to-current-subtitle)
     (define-key subed-mode-map (kbd "C-c C-d") #'subed-toggle-debugging)
     (define-key subed-mode-map (kbd "C-c C-v") #'subed-mpv-find-video)
     (define-key subed-mode-map (kbd "C-c C-u") #'subed-mpv-play-video-from-url)
@@ -90,7 +92,8 @@
 
 ;;;###autoload
 (defvar subed--init-alist '(("srt" . subed-srt--init)
-                            ("vtt" . subed-vtt--init))
+                            ("vtt" . subed-vtt--init)
+                            ("ass" . subed-ass--init))
   "Alist that maps file extensions to format-specific init functions.")
 
 ;;; Abstraction hack to support different subtitle formats
@@ -110,6 +113,7 @@
   (list "subtitle-id" "subtitle-id-max" "subtitle-id-at-msecs"
         "subtitle-msecs-start" "subtitle-msecs-stop"
         "subtitle-text" "subtitle-relative-point"
+        "msecs-to-timestamp" "timestamp-to-msecs"
         "jump-to-subtitle-id" "jump-to-subtitle-id-at-msecs"
         "jump-to-subtitle-time-start" "jump-to-subtitle-time-stop"
         "jump-to-subtitle-text" "jump-to-subtitle-text-at-msecs"
@@ -122,7 +126,7 @@
         "set-subtitle-time-start" "set-subtitle-time-stop"
         "prepend-subtitle" "append-subtitle" "kill-subtitle" "merge-with-next"
         "regenerate-ids" "regenerate-ids-soon"
-        "sanitize" "validate" "sort"))
+        "sanitize" "validate" "sort" "make-subtitle"))
 
 (defun subed--get-generic-func (func-suffix)
   "Return the generic/public function for FUNC-SUFFIX."

@@ -35,10 +35,15 @@ Baz.
         (with-temp-vtt-buffer
          (insert mock-vtt-data)
          (subed-vtt--jump-to-subtitle-id "00:03:03.45")
-         (expect (save-excursion (subed-jump-to-subtitle-time-start)
+         (expect (save-excursion (subed-vtt--jump-to-subtitle-time-start)
                                  (thing-at-point 'line)) :to-equal "00:03:03.45 --> 00:03:15.5\n")
          (expect (subed-vtt--subtitle-msecs-start) :to-equal (+ (* 3 60 1000) (*  3 1000) 450))
          (expect (subed-vtt--subtitle-msecs-stop)  :to-equal (+ (* 3 60 1000) (* 15 1000) 500))))
+      (it "handles lack of hours in milliseconds gracefully."
+        (with-temp-vtt-buffer
+         (insert "WEBVTT\n\n01:02.000 --> 03:04.000\nHello\n")
+         (expect (subed-vtt--subtitle-msecs-start) :to-equal (+ (* 1 60 1000) (* 2 1000)))
+         (expect (subed-vtt--subtitle-msecs-stop) :to-equal (+ (* 3 60 1000) (* 4 1000)))))
       (it "returns nil if time can't be found."
         (with-temp-vtt-buffer
          (expect (subed-vtt--subtitle-msecs-start) :to-be nil)
@@ -255,6 +260,15 @@ Baz.
          (backward-char 2)
          (expect (subed-vtt--jump-to-subtitle-end) :to-be 112)
          (expect (looking-back "^Baz.$") :to-be t)))
+      (it "handles spaces in between subtitles."
+        (with-temp-vtt-buffer
+         (insert mock-vtt-data)
+         (goto-char (point-min))
+         (re-search-forward "Foo\\.\n")
+         (replace-match "Foo.\n ")
+         (goto-char (point-min))
+         (expect (subed-vtt--jump-to-subtitle-end) :to-be 43)
+         (expect (looking-back "^Foo.$") :to-be t)))
       (it "returns nil if subtitle end cannot be found."
         (with-temp-vtt-buffer
          (expect (subed-vtt--jump-to-subtitle-end) :to-be nil)))
@@ -1133,4 +1147,27 @@ Baz.
          (subed-vtt--sort)
          (expect (point) :to-equal (1- (point-max)))))
       )
-    ))
+    )
+  (describe "Converting msecs to timestamp"
+    (it "uses the right format"
+      (with-temp-vtt-buffer
+       (expect (subed-msecs-to-timestamp 1401) :to-equal "00:00:01.401"))))
+  (describe "Working with comments"
+    (it "ignores the comment when jumping to the end of the subtitle"
+      (with-temp-vtt-buffer
+       (insert "WEBVTT
+
+00:00:00.000 --> 00:00:01.000
+This is a test.
+
+NOTE A comment can go here
+and have more text as needed.
+
+00:01:00.000 --> 00:00:02.000
+This is another test here.
+")
+       (goto-char (point-min))
+       (subed-forward-subtitle-end)
+       (expect (current-word) :to-equal "test")
+       (subed-forward-subtitle-end)
+       (expect (current-word) :to-equal "here")))))
